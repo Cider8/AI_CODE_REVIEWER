@@ -21,4 +21,30 @@ api.interceptors.response.use(
   }
 );
 
+export const authApi = {
+  getCurrentUser: () => api.get("/auth/me"),
+  login: (payload) => api.post("/auth/login", payload),
+  register: (payload) => api.post("/auth/register", payload),
+  updateProfile: (payload) => api.patch("/auth/profile", payload),
+  changePassword: (payload) => api.patch("/auth/password", payload),
+  deleteAccount: () => api.delete("/auth/account"),
+};
+
+export const reviewApi = {
+  createReview: (payload) => api.post("/reviews", payload),
+  getReviews: (params = {}) => api.get("/reviews", { params }),
+  getReviewById: (id) => api.get(`/reviews/${id}`),
+  deleteReview: (id) => api.delete(`/reviews/${id}`),
+};
+
+export const statsApi = {
+  getDashboardStats: () => api.get("/stats"),
+};
+
+export const collectionApi = {
+  getCollections: () => api.get("/collections"),
+  createCollection: (payload) => api.post("/collections", payload),
+  deleteCollection: (id) => api.delete(`/collections/${id}`),
+};
+
 export default api;

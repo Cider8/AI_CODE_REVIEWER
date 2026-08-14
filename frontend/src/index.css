@@ -63,17 +63,11 @@ input:focus, textarea:focus, select:focus {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
 /* ==========================================================================
-   Page shell primitives
+   Utilities
    ========================================================================== */
 .page { padding: 32px; max-width: 1200px; margin: 0 auto; }
-.page-title {
-  font-family: var(--font-mono);
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-.page-sub { color: var(--text2); margin-bottom: 32px; }
 
+.section-header,
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -81,7 +75,23 @@ input:focus, textarea:focus, select:focus {
   gap: 16px;
   margin-bottom: 32px;
 }
+.section-header-copy,
 .page-header-copy { flex: 1; }
+
+.section-title,
+.page-title {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.section-subtitle,
+.page-sub {
+  color: var(--text2);
+  margin-bottom: 32px;
+}
+
 .page-subtle { color: var(--text2); }
 .page-muted { color: var(--text2); font-size: 13px; }
 .page-grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
@@ -98,9 +108,6 @@ input:focus, textarea:focus, select:focus {
   color: var(--text2);
 }
 
-/* ==========================================================================
-   Buttons / cards / badges
-   ========================================================================== */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -153,7 +160,7 @@ input:focus, textarea:focus, select:focus {
 .tone-accent2 { background: #00e5b022; color: var(--accent2); }
 
 /* ==========================================================================
-   Reusable form / status primitives
+   Forms
    ========================================================================== */
 .field-label {
   font-size: 13px;
@@ -230,7 +237,7 @@ input:focus, textarea:focus, select:focus {
 .chip-color-4, .dot-color-4 { --series-color: var(--chart-5); }
 
 /* ==========================================================================
-   App layout (sidebar navigation)
+   Layout
    ========================================================================== */
 .layout-shell { display: flex; min-height: 100vh; }
 
@@ -290,15 +297,6 @@ input:focus, textarea:focus, select:focus {
 /* ==========================================================================
    Dashboard
    ========================================================================== */
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 32px;
-  gap: 16px;
-}
-.dashboard-subtitle { margin: 0; }
-
 .dashboard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
 .dashboard-stat-card { display: flex; align-items: center; gap: 16px; }
 .dashboard-stat-icon { width: 44px; height: 44px; border-radius: var(--radius); display: grid; place-items: center; }
@@ -349,8 +347,7 @@ input:focus, textarea:focus, select:focus {
 .history-search-input { padding-left: 36px; }
 .history-select { width: 160px; }
 
-.history-loading,
-.history-empty-state { color: var(--text2); text-align: center; padding: 40px; }
+.history-loading { color: var(--text2); text-align: center; padding: 40px; }
 .history-empty-card { text-align: center; padding: 60px; color: var(--text2); }
 .history-empty-icon { margin: 0 auto 16px; opacity: 0.3; }
 .history-empty-link { color: var(--accent); cursor: pointer; }
@@ -406,7 +403,7 @@ input:focus, textarea:focus, select:focus {
 .new-review-status-copy { color: var(--text2); font-size: 13px; }
 
 /* ==========================================================================
-   Review Detail
+   Review
    ========================================================================== */
 .review-header { margin-bottom: 32px; }
 .review-header-meta { color: var(--text2); font-size: 13px; }
@@ -461,8 +458,7 @@ input:focus, textarea:focus, select:focus {
 .review-issue-card { padding: 12px 14px; background: var(--bg3); border-radius: var(--radius); margin-bottom: 8px; }
 .review-issue-meta { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
 .review-issue-line { font-size: 12px; color: var(--text2); font-family: var(--font-mono); }
-.review-issue-text,
-.review-issue-note { font-size: 13px; margin-bottom: 6px; }
+.review-issue-text { font-size: 13px; margin-bottom: 6px; }
 .review-issue-tip { font-size: 13px; color: var(--accent2); }
 
 .review-improvements-list { display: flex; flex-direction: column; gap: 8px; list-style: none; }

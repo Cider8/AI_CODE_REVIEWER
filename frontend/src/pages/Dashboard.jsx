@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Code2, Bug, ShieldAlert, Star, Plus } from "lucide-react";
-import api from "../services/api";
+import { statsApi } from "../services/api";
 
 const COLORS = ["#7c6aff", "#00e5b0", "#ff4d6a", "#ffb347", "#60a5fa"];
 
@@ -12,7 +12,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get("/stats").then(({ data }) => setData(data)).finally(() => setLoading(false));
+    statsApi.getDashboardStats()
+      .then(({ data }) => setData(data))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="page page-subtle">Loading dashboard...</div>;
@@ -36,10 +38,10 @@ export default function Dashboard() {
 
   return (
     <div className="page">
-      <div className="page-header dashboard-header">
-        <div className="page-header-copy">
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-sub dashboard-subtitle">Your code quality at a glance</p>
+      <div className="section-header">
+        <div className="section-header-copy">
+          <h1 className="section-title">Dashboard</h1>
+          <p className="section-subtitle">Your code quality at a glance</p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate("/review/new")}>
           <Plus size={16} /> New Review

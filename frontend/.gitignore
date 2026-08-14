@@ -7,10 +7,27 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
 dist
 dist-ssr
 *.local
+
+# Build & Output
+build/
+out/
+
+# Environment Variables (Keep .env.example)
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.*.local
+
+# Vite
+.vite/
+.vitepress/
+dist-vite/
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +39,28 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# IDE
+*.iml
+.gradle
+.classpath
+.project
+.c9/
+
+# OS
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Package Manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Temporary
+*.tmp
+*.temp
+*~
+

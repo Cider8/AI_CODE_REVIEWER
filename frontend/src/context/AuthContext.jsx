@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import api from "../services/api";
+import { authApi } from "../services/api";
 import { AuthContext } from "./auth-context";
 
 export const AuthProvider = ({ children }) => {
@@ -8,21 +8,26 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
-    api.get("/auth/me")
-      .then(({ data }) => setUser(data))
-      .catch(() => localStorage.removeItem("token"))
-      .finally(() => setLoading(false));
-  }, []);
+    
+    if(token) {
+      authApi.getCurrentUser()
+        .then(({data}) => setUser(data.user))
+        .catch(() => {
+          localStorage.removeItem("token");
+          setUser(null);
+        })
+        .finally(() => setLoading(false));
+    }
+  },[])
 
   const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
+    const { data } = await authApi.login({ email, password });
     localStorage.setItem("token", data.token);
     setUser(data.user);
   };
 
   const register = async (name, email, password) => {
-    const { data } = await api.post("/auth/register", { name, email, password });
+    const { data } = await authApi.register({ name, email, password });
     localStorage.setItem("token", data.token);
     setUser(data.user);
   };

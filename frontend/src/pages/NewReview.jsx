@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader, Sparkles } from "lucide-react";
-import api from "../services/api";
+import { reviewApi } from "../services/api";
 
 const LANGUAGES = ["JavaScript","TypeScript","Python","Java","C++","C","Go","Rust","Ruby","PHP","Swift","Kotlin","C#"];
 
@@ -16,7 +16,7 @@ export default function NewReview() {
     if (!form.code.trim()) return setError("Please paste some code first.");
     setError(""); setLoading(true);
     try {
-      const { data } = await api.post("/reviews", {
+      const { data } = await reviewApi.createReview({
         title: form.title || undefined,
         language: form.language,
         originalCode: form.code,
@@ -31,8 +31,8 @@ export default function NewReview() {
 
   return (
     <div className="page new-review-page">
-      <h1 className="page-title">New Review</h1>
-      <p className="page-sub">Paste your code and let AI find bugs, security issues, and improvements.</p>
+      <h1 className="section-title">New Review</h1>
+      <p className="section-subtitle">Paste your code and let AI find bugs, security issues, and improvements.</p>
 
       {error && (
         <div className="status-banner">

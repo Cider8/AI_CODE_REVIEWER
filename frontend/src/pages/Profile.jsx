@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { User, Save, Lock, Loader } from "lucide-react";
-import api from "../services/api";
+import { authApi } from "../services/api";
 
 const LANGUAGES = ["JavaScript","TypeScript","Python","Java","C++","C","Go","Rust","Ruby","PHP","Swift","Kotlin","C#"];
 
@@ -35,7 +35,7 @@ export default function Profile() {
     e.preventDefault();
     setSavingProfile(true); setProfileMsg({ text: "", ok: true });
     try {
-      await api.patch("/auth/profile", { name, preferredLanguages: langs });
+      await authApi.updateProfile({ name, preferredLanguages: langs });
       setProfileMsg({ text: "Profile saved!", ok: true });
     } catch (err) {
       setProfileMsg({ text: err.response?.data?.message || "Save failed", ok: false });
@@ -51,7 +51,7 @@ export default function Profile() {
       return setPwMsg({ text: "Passwords don't match", ok: false });
     setSavingPw(true); setPwMsg({ text: "", ok: true });
     try {
-      await api.patch("/auth/password", { currentPassword: pwForm.current, newPassword: pwForm.next });
+      await authApi.changePassword({ currentPassword: pwForm.current, newPassword: pwForm.next });
       setPwMsg({ text: "Password changed!", ok: true });
       setPwForm({ current: "", next: "", confirm: "" });
     } catch (err) {
@@ -67,7 +67,7 @@ export default function Profile() {
     if (!confirm("Last chance — this cannot be undone!")) return;
     setDeleting(true);
     try {
-      await api.delete("/auth/account");
+      await authApi.deleteAccount();
       logout();
     } catch {
       alert("Delete failed. Try again.");
@@ -77,8 +77,8 @@ export default function Profile() {
 
   return (
     <div className="page page-narrow">
-      <h1 className="page-title">Profile</h1>
-      <p className="page-sub">Manage your account</p>
+      <h1 className="section-title">Profile</h1>
+      <p className="section-subtitle">Manage your account</p>
 
       {/* ── Profile Info ── */}
       <div className="card card-mb">

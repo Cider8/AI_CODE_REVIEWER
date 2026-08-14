@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Bug, ShieldAlert, Zap, Lightbulb, Code2, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import api from "../services/api";
+import { reviewApi } from "../services/api";
 
 const scoreTone = (score) => (score >= 70 ? "score-good" : score >= 40 ? "score-warn" : "score-bad");
 
@@ -43,12 +43,14 @@ export default function ReviewDetail() {
   const [showRefactor, setShowRefactor] = useState(false);
 
   useEffect(() => {
-    api.get(`/reviews/${id}`).then(({ data }) => setReview(data)).finally(() => setLoading(false));
+    reviewApi.getReviewById(id)
+      .then(({ data }) => setReview(data))
+      .finally(() => setLoading(false));
   }, [id]);
 
   const handleDelete = async () => {
     if (!confirm("Delete this review?")) return;
-    await api.delete(`/reviews/${id}`);
+    await reviewApi.deleteReview(id);
     navigate("/history");
   };
 
@@ -58,9 +60,9 @@ export default function ReviewDetail() {
   return (
     <div className="page">
       {/* Header */}
-      <div className="page-header review-header">
-        <div className="page-header-copy">
-          <h1 className="page-title">{review.title}</h1>
+      <div className="section-header review-header">
+        <div className="section-header-copy">
+          <h1 className="section-title">{review.title}</h1>
           <p className="review-header-meta">
             {review.language} · {new Date(review.createdAt).toLocaleString()}
           </p>

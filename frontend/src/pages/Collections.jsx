@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FolderOpen, Plus, Trash2, Code2 } from "lucide-react";
-import api from "../services/api";
+import { collectionApi } from "../services/api";
 import { useNavigate } from "react-router-dom";
 
 export default function Collections() {
@@ -10,29 +10,32 @@ export default function Collections() {
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
 
-  const fetch = () => api.get("/collections").then(({ data }) => setCols(data));
-  useEffect(() => { fetch(); }, []);
+  const fetch = () => collectionApi.getCollections().then(({ data }) => setCols(data));
+
+  useEffect(() => { 
+    fetch(); 
+  }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
-    await api.post("/collections", { name: newName, description: newDesc });
+    await collectionApi.createCollection({ name: newName, description: newDesc });
     setNewName(""); setNewDesc(""); setCreating(false);
     fetch();
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Delete collection?")) return;
-    await api.delete(`/collections/${id}`);
+    await collectionApi.deleteCollection(id);
     fetch();
   };
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div className="page-header-copy">
-          <h1 className="page-title">Collections</h1>
-          <p className="page-sub dashboard-subtitle">Group your reviews into folders</p>
+      <div className="section-header">
+        <div className="section-header-copy">
+          <h1 className="section-title">Collections</h1>
+          <p className="section-subtitle">Group your reviews into folders</p>
         </div>
         <button className="btn btn-primary" onClick={() => setCreating(!creating)}>
           <Plus size={16} /> New Collection

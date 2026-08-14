@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Code2, Search, Trash2 } from "lucide-react";
-import api from "../services/api";
+import { reviewApi } from "../services/api";
 
 const LANGUAGES = ["All","JavaScript","TypeScript","Python","Java","C++","Go","Rust","Ruby","PHP"];
 
@@ -20,7 +20,7 @@ export default function History() {
       const params = { page, limit: 10 };
       if (search) params.search = search;
       if (lang !== "All") params.language = lang;
-      const { data } = await api.get("/reviews", { params });
+      const { data } = await reviewApi.getReviews(params);
       setReviews(data.reviews);
       setTotal(data.total);
     } finally {
@@ -40,14 +40,14 @@ export default function History() {
   const handleDelete = async (e, id) => {
     e.stopPropagation();
     if (!confirm("Delete this review?")) return;
-    await api.delete(`/reviews/${id}`);
+    await reviewApi.deleteReview(id);
     fetchReviews();
   };
 
   return (
     <div className="page">
-      <h1 className="page-title">History</h1>
-      <p className="page-sub">All your past code reviews</p>
+      <h1 className="section-title">History</h1>
+      <p className="section-subtitle">All your past code reviews</p>
 
       {/* Filters */}
       <div className="history-filters">

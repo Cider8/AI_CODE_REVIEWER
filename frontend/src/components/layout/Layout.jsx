@@ -17,7 +17,10 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => { logout(); navigate("/login"); };
+  const handleLogout = () => { 
+    logout(); 
+    navigate("/login"); 
+  };
 
   return (
     <div className="layout-shell">
@@ -31,14 +34,14 @@ export default function Layout() {
 
         {/* Nav */}
         <nav className="layout-nav">
-          {NAV.map(({ to, icon: Icon, label }) => (
+          {NAV.map((item) => (
             <NavLink
-              key={to}
-              to={to}
+              key={item.to}
+              to={item.to}
               className={({ isActive }) => "layout-nav-link" + (isActive ? " active" : "")}
             >
-              <Icon size={17} />
-              {label}
+              <item.icon size={18} />
+              <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
