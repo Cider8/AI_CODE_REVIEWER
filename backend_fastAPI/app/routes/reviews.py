@@ -8,7 +8,7 @@ from beanie.operators import RegEx
 from app.models.user import User
 from app.models.review import Review
 from app.models.stats import UserStats, ScorePoint, LanguageCount
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_db
 from app.utils.gemini import analyze_code
 from app.utils.convert import doc_to_schema
 from app.schemas.review_schema import (
@@ -18,7 +18,7 @@ from app.schemas.review_schema import (
     PaginatedReviews,
 )
 
-router = APIRouter(prefix="/api/reviews", tags=["reviews"])
+router = APIRouter(prefix="/api/reviews", tags=["reviews"], dependencies=[Depends(require_db)])
 
 
 # POST /api/reviews — submit code for AI review

@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from app.models.user import User
 from app.models.collection import Collection
 from app.models.review import Review
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_db
 from app.utils.convert import doc_to_schema
 from app.schemas.stats_schema import (
     CreateCollectionRequest,
@@ -13,7 +13,9 @@ from app.schemas.stats_schema import (
 )
 from app.schemas.review_schema import ReviewListItem
 
-router = APIRouter(prefix="/api/collections", tags=["collections"])
+router = APIRouter(
+    prefix="/api/collections", tags=["collections"], dependencies=[Depends(require_db)]
+)
 
 
 async def _to_collection_out(col: Collection) -> CollectionOut:

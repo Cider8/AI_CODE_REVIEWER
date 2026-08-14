@@ -4,7 +4,7 @@ from app.models.user import User
 from app.models.review import Review
 from app.models.stats import UserStats
 from app.models.collection import Collection
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_db
 from app.utils.security import hash_password, verify_password, create_access_token
 from app.utils.convert import doc_to_schema
 from app.schemas.auth_schema import (
@@ -17,7 +17,7 @@ from app.schemas.auth_schema import (
     MessageResponse,
 )
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"], dependencies=[Depends(require_db)])
 
 
 # POST /api/auth/register

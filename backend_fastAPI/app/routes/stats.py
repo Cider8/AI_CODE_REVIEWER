@@ -3,12 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.models.user import User
 from app.models.stats import UserStats
 from app.models.review import Review
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_db
 from app.utils.convert import doc_to_schema
 from app.schemas.stats_schema import DashboardResponse, StatsOut
 from app.schemas.review_schema import ReviewListItem
 
-router = APIRouter(prefix="/api/stats", tags=["stats"])
+router = APIRouter(prefix="/api/stats", tags=["stats"], dependencies=[Depends(require_db)])
 
 
 # GET /api/stats — dashboard data
