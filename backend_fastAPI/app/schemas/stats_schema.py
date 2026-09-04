@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from pydantic import Field
 
 from app.schemas.base import CamelModel
-from app.models.stats import ScorePoint, LanguageCount
+from app.models.stats import ScorePoint, LanguageBreakdown
 from app.schemas.review_schema import ReviewListItem
 
 
@@ -16,7 +16,7 @@ class StatsOut(CamelModel):
     total_bugs_found: int
     total_security_issues_found: int
     score_history: list[ScorePoint]
-    language_breakdown: list[LanguageCount]
+    language_breakdown: list[LanguageBreakdown]
     common_weaknesses: list[str]
     updated_at: datetime
 

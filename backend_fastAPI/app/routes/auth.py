@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pymongo.errors import DuplicateKeyError
 
 from app.models.user import User
 from app.models.review import Review
@@ -7,6 +8,7 @@ from app.models.collection import Collection
 from app.dependencies import get_current_user, require_db
 from app.utils.security import hash_password, verify_password, create_access_token
 from app.utils.convert import doc_to_schema
+from app.utils.stats import get_or_create_stats
 from app.schemas.auth_schema import (
     RegisterRequest,
     LoginRequest,
@@ -32,10 +34,15 @@ async def register(body: RegisterRequest):
         email=body.email,
         password=hash_password(body.password),
     )
-    await user.insert()
+    try:
+        await user.insert()
+    except DuplicateKeyError:
+        # Two registrations for the same address raced past the check above;
+        # the unique index on User.email is what actually decides.
+        raise HTTPException(status_code=400, detail="Email already in use")
 
     # Create empty stats doc for this user
-    await UserStats(user_id=user.id).insert()
+    await get_or_create_stats(user.id)
 
     token = create_access_token(str(user.id))
     return AuthResponse(token=token, user=doc_to_schema(user, UserOut))

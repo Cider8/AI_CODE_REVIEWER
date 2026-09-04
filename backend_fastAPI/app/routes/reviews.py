@@ -1,4 +1,5 @@
 import math
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -7,10 +8,12 @@ from beanie.operators import RegEx
 
 from app.models.user import User
 from app.models.review import Review
-from app.models.stats import UserStats, ScorePoint, LanguageCount
+from app.models.stats import ScorePoint, LanguageBreakdown
 from app.dependencies import get_current_user, require_db
 from app.utils.gemini import analyze_code
 from app.utils.convert import doc_to_schema
+from app.utils.stats import get_or_create_stats
+from app.utils.time import utc_now
 from app.schemas.review_schema import (
     CreateReviewRequest,
     ReviewDetail,
@@ -68,7 +71,9 @@ async def list_reviews(
     if language:
         query = query.find(Review.language == language)
     if search:
-        query = query.find(RegEx(Review.title, search, "i"))
+        # Escaped: an unbalanced "(" or a pathological pattern from the
+        # client would otherwise reach MongoDB as a raw regex.
+        query = query.find(RegEx(Review.title, re.escape(search), "i"))
 
     total = await query.count()
 
@@ -125,13 +130,14 @@ async def delete_review(
 
 # ── Helper: update UserStats after a new review ──────────────────────────
 async def _update_stats(user_id: PydanticObjectId, review: Review, ai_result):
-    stats = await UserStats.find_one(UserStats.user_id == user_id)
-    if not stats:
-        return
+    stats = await get_or_create_stats(user_id)
 
     new_total = stats.total_reviews + 1
+    # Kept to 2dp rather than whole numbers: rounding to an integer each time
+    # feeds the error back into the next average and drifts over many reviews.
     new_avg = round(
-        (stats.average_score * stats.total_reviews + (ai_result.overall_score or 0)) / new_total
+        (stats.average_score * stats.total_reviews + (ai_result.overall_score or 0)) / new_total,
+        2,
     )
 
     # Language breakdown
@@ -141,12 +147,13 @@ async def _update_stats(user_id: PydanticObjectId, review: Review, ai_result):
     if lang_entry:
         lang_entry.count += 1
     else:
-        stats.language_breakdown.append(LanguageCount(language=review.language, count=1))
+        stats.language_breakdown.append(LanguageBreakdown(language=review.language, count=1))
 
     stats.total_reviews = new_total
     stats.average_score = new_avg
     stats.total_bugs_found += len(ai_result.bugs)
     stats.total_security_issues_found += len(ai_result.security_issues)
     stats.score_history.append(ScorePoint(score=ai_result.overall_score or 0))
+    stats.updated_at = utc_now()
 
     await stats.save()

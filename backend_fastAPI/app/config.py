@@ -9,11 +9,13 @@ class Settings(BaseSettings):
 
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    jwt_expire_days: int = 7
+    jwt_expire_days: int = 2
 
     gemini_api_key: str
 
     frontend_url: str = "http://localhost:5173"
+
+    project_version: str = "1.0.0"
 
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parent.parent / ".env"),
