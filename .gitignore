@@ -18,3 +18,6 @@ dist-ssr/
 *.local
 
 .IMPLEMENTATION_GUIDE.md
+
+.env
+
