@@ -59,14 +59,14 @@ export default function Home() {
         <div className="team-grid">
           <div className="team-card">
             <div className="avatar"></div>
-            <h3>Developer Name</h3>
-            <p>Lead Engineer</p>
+            <h3>Kajal K</h3>
+            <p>SDE-1</p>
           </div>
         </div>
       </section>
 
       <footer className="home-footer">
-        <p>&copy; 2024 CodeLens AI. All rights reserved.</p>
+        <p>@copy; 2026 KrishnaLens. All rights reserved.</p>
       </footer>
 
       {/* Modal Overlay */}
