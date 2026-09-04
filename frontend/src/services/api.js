@@ -47,4 +47,12 @@ export const collectionApi = {
   deleteCollection: (id) => api.delete(`/collections/${id}`),
 };
 
+// Chat API — paths mirror app/routes/chat.py; the body key is `content`.
+export const chatApi = {
+  startSession: (reviewId) => api.post(`/chat/reviews/${reviewId}/start`),
+  getMessages: (sessionId) => api.get(`/chat/sessions/${sessionId}/messages`),
+  sendMessage: (sessionId, content) =>
+    api.post(`/chat/sessions/${sessionId}/messages`, { content }),
+};
+
 export default api;

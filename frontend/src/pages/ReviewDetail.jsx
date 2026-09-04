@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Bug, ShieldAlert, Zap, Lightbulb, Code2, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { reviewApi } from "../services/api";
+import ReviewChat from "../components/ReviewChat";
 
 const scoreTone = (score) => (score >= 70 ? "score-good" : score >= 40 ? "score-warn" : "score-bad");
 
@@ -158,6 +159,9 @@ export default function ReviewDetail() {
           )}
         </div>
       )}
+
+      {/* Follow-up chat */}
+      <ReviewChat reviewId={id} />
     </div>
   );
 }

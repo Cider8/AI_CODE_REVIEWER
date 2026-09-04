@@ -41,7 +41,7 @@ export default function Register() {
             {[
               { key: "name",     label: "Name",     type: "text",     placeholder: "Your name" },
               { key: "email",    label: "Email",    type: "email",    placeholder: "you@example.com" },
-              { key: "password", label: "Password", type: "password", placeholder: "Min 6 characters" },
+              { key: "password", label: "Password", type: "password", placeholder: "Min 8 characters" },
             ].map(({ key, label, type, placeholder }) => (
               <div key={key}>
                 <label className="field-label">{label}</label>
