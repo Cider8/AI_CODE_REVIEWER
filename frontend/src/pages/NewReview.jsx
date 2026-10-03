@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader, Sparkles } from "lucide-react";
 import { reviewApi } from "../services/api";
+import { LANGUAGES } from "../constants";
+import { unavailableMessage } from "../services/apiErrors";
 
-const LANGUAGES = ["JavaScript","TypeScript","Python","Java","C++","C","Go","Rust","Ruby","PHP","Swift","Kotlin","C#"];
 
 export default function NewReview() {
   const [form, setForm] = useState({ title: "", language: "JavaScript", code: "" });
@@ -23,7 +24,8 @@ export default function NewReview() {
       });
       navigate(`/review/${data._id}`);
     } catch (err) {
-      setError(err.response?.data?.message || "Analysis failed. Try again.");
+      // AI failure details (502) are technical, so they are never shown.
+      setError(unavailableMessage(err) || "Analysis failed. Try again.");
     } finally {
       setLoading(false);
     }

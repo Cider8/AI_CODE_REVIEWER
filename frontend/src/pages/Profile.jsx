@@ -2,8 +2,13 @@ import { useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { User, Save, Lock, Loader } from "lucide-react";
 import { authApi } from "../services/api";
+import { LANGUAGES, PASSWORD_HINT } from "../constants";
+import { errorMessage, fieldErrors } from "../services/apiErrors";
+import { FieldHint, FieldErrors } from "../components/FieldNotes";
 
-const LANGUAGES = ["JavaScript","TypeScript","Python","Java","C++","C","Go","Rust","Ruby","PHP","Swift","Kotlin","C#"];
+// The change-password 422 reports fields by their API names.
+const PW_FIELDS = { currentPassword: "current", newPassword: "next" };
+
 
 const Msg = ({ msg }) => msg.text ? (
   <div className={`status-message ${msg.ok ? "status-message-success" : "status-message-danger"}`}>
@@ -12,7 +17,7 @@ const Msg = ({ msg }) => msg.text ? (
 ) : null;
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
 
   // Profile section
   const [name, setName]   = useState(user?.name || "");
@@ -23,6 +28,7 @@ export default function Profile() {
   // Password section
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
   const [pwMsg, setPwMsg]   = useState({ text: "", ok: true });
+  const [pwErrs, setPwErrs] = useState({}); // 422 messages keyed by form field
   const [savingPw, setSavingPw] = useState(false);
 
   // Delete section
@@ -35,10 +41,11 @@ export default function Profile() {
     e.preventDefault();
     setSavingProfile(true); setProfileMsg({ text: "", ok: true });
     try {
-      await authApi.updateProfile({ name, preferredLanguages: langs });
+      const { data } = await authApi.updateProfile({ name, preferredLanguages: langs });
+      updateUser(data);
       setProfileMsg({ text: "Profile saved!", ok: true });
     } catch (err) {
-      setProfileMsg({ text: err.response?.data?.message || "Save failed", ok: false });
+      setProfileMsg({ text: errorMessage(err, "Save failed"), ok: false });
     } finally {
       setSavingProfile(false);
       setTimeout(() => setProfileMsg({ text: "", ok: true }), 3000);
@@ -49,13 +56,18 @@ export default function Profile() {
     e.preventDefault();
     if (pwForm.next !== pwForm.confirm)
       return setPwMsg({ text: "Passwords don't match", ok: false });
-    setSavingPw(true); setPwMsg({ text: "", ok: true });
+    setSavingPw(true); setPwMsg({ text: "", ok: true }); setPwErrs({});
     try {
       await authApi.changePassword({ currentPassword: pwForm.current, newPassword: pwForm.next });
       setPwMsg({ text: "Password changed!", ok: true });
       setPwForm({ current: "", next: "", confirm: "" });
     } catch (err) {
-      setPwMsg({ text: err.response?.data?.message || "Failed", ok: false });
+      const byField = {};
+      for (const [field, msgs] of Object.entries(fieldErrors(err)))
+        byField[PW_FIELDS[field] || field] = msgs;
+      setPwErrs(byField);
+      if (!Object.keys(byField).length)
+        setPwMsg({ text: errorMessage(err, "Couldn't change your password."), ok: false });
     } finally {
       setSavingPw(false);
       setTimeout(() => setPwMsg({ text: "", ok: true }), 3000);
@@ -134,12 +146,23 @@ export default function Profile() {
         <form onSubmit={handleChangePassword} className="form-stack form-stack-sm">
           {[
             { key: "current", label: "Current Password",  placeholder: "Your current password" },
-            { key: "next",    label: "New Password",      placeholder: "Min 6 characters" },
+            { key: "next",    label: "New Password",      placeholder: "Choose a new password", hint: PASSWORD_HINT },
             { key: "confirm", label: "Confirm Password",  placeholder: "Repeat new password" },
-          ].map(({ key, label, placeholder }) => (
+          ].map(({ key, label, placeholder, hint }) => (
             <div key={key}>
-              <label className="field-label">{label}</label>
-              <input type="password" value={pwForm[key]} onChange={e => setPwForm({ ...pwForm, [key]: e.target.value })} placeholder={placeholder} required />
+              <label className="field-label" htmlFor={`pw-${key}`}>{label}</label>
+              <input
+                id={`pw-${key}`}
+                type="password"
+                value={pwForm[key]}
+                onChange={e => setPwForm({ ...pwForm, [key]: e.target.value })}
+                placeholder={placeholder}
+                aria-invalid={!!pwErrs[key]}
+                aria-describedby={[hint && `pw-${key}-hint`, pwErrs[key] && `pw-${key}-err`].filter(Boolean).join(" ") || undefined}
+                required
+              />
+              {hint && <FieldHint id={`pw-${key}-hint`}>{hint}</FieldHint>}
+              <FieldErrors id={`pw-${key}-err`} errors={pwErrs[key]} />
             </div>
           ))}
           <div>

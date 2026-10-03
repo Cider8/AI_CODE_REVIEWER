@@ -8,11 +8,12 @@ from beanie.operators import RegEx
 
 from app.models.user import User
 from app.models.review import Review
-from app.models.stats import ScorePoint, LanguageBreakdown
+from app.models.collection import Collection
+from app.models.chat import ChatSession, ChatMessage
 from app.dependencies import get_current_user, require_db
 from app.utils.gemini import analyze_code
 from app.utils.convert import doc_to_schema
-from app.utils.stats import get_or_create_stats
+from app.utils.stats import recompute_stats
 from app.utils.time import utc_now
 from app.schemas.review_schema import (
     CreateReviewRequest,
@@ -34,6 +35,10 @@ async def create_review(
         ai_result = await analyze_code(body.original_code, body.language)
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
+    except Exception:
+        # Provider/transport failures (timeouts, quota, auth) are upstream
+        # errors too; without this they surfaced as a bare 500.
+        raise HTTPException(status_code=502, detail="AI service did not respond")
 
     review = Review(
         user_id=current_user.id,
@@ -52,7 +57,7 @@ async def create_review(
     )
     await review.insert()
 
-    await _update_stats(current_user.id, review, ai_result)
+    await recompute_stats(current_user.id)
 
     return doc_to_schema(review, ReviewDetail)
 
@@ -124,36 +129,20 @@ async def delete_review(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
+    # Nothing else may keep pointing at the review: drop it from the user's
+    # collections and remove its chat, then rebuild the dashboard figures.
+    await Collection.find(
+        Collection.user_id == current_user.id,
+        Collection.review_ids == review_id,
+    ).update({"$pull": {"review_ids": review_id}, "$set": {"updated_at": utc_now()}})
+
+    sessions = await ChatSession.find(ChatSession.review_id == review_id).to_list()
+    session_ids = [sess.id for sess in sessions]
+    if session_ids:
+        await ChatMessage.find({"session_id": {"$in": session_ids}}).delete()
+        await ChatSession.find({"_id": {"$in": session_ids}}).delete()
+
     await review.delete()
+    await recompute_stats(current_user.id)
     return {"message": "Review deleted"}
 
-
-# ── Helper: update UserStats after a new review ──────────────────────────
-async def _update_stats(user_id: PydanticObjectId, review: Review, ai_result):
-    stats = await get_or_create_stats(user_id)
-
-    new_total = stats.total_reviews + 1
-    # Kept to 2dp rather than whole numbers: rounding to an integer each time
-    # feeds the error back into the next average and drifts over many reviews.
-    new_avg = round(
-        (stats.average_score * stats.total_reviews + (ai_result.overall_score or 0)) / new_total,
-        2,
-    )
-
-    # Language breakdown
-    lang_entry = next(
-        (l for l in stats.language_breakdown if l.language == review.language), None
-    )
-    if lang_entry:
-        lang_entry.count += 1
-    else:
-        stats.language_breakdown.append(LanguageBreakdown(language=review.language, count=1))
-
-    stats.total_reviews = new_total
-    stats.average_score = new_avg
-    stats.total_bugs_found += len(ai_result.bugs)
-    stats.total_security_issues_found += len(ai_result.security_issues)
-    stats.score_history.append(ScorePoint(score=ai_result.overall_score or 0))
-    stats.updated_at = utc_now()
-
-    await stats.save()

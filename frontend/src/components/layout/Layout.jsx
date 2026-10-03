@@ -29,7 +29,7 @@ export default function Layout() {
         {/* Logo */}
         <div className="layout-logo">
           <Cpu size={22} color="var(--accent)" />
-          <span className="layout-logo-text">CodeLens</span>
+          <span className="layout-logo-text">KrishnaLens</span>
         </div>
 
         {/* Nav */}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { Cpu, Loader } from "lucide-react";
+import { errorMessage } from "../services/apiErrors";
 
 export default function Login() {
   const [form, setForm]   = useState({ email: "", password: "" });
@@ -17,7 +18,7 @@ export default function Login() {
       await login(form.email, form.password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(errorMessage(err, "Login failed"));
     } finally {
       setLoading(false);
     }

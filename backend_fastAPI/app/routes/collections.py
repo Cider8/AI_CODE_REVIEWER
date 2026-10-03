@@ -9,9 +9,11 @@ from app.utils.convert import doc_to_schema
 from app.schemas.stats_schema import (
     CreateCollectionRequest,
     AddReviewRequest,
+    UpdateCollectionRequest,
     CollectionOut,
 )
 from app.schemas.review_schema import ReviewListItem
+from app.utils.time import utc_now
 
 router = APIRouter(
     prefix="/api/collections", tags=["collections"], dependencies=[Depends(require_db)]
@@ -31,6 +33,18 @@ async def _to_collection_out(col: Collection) -> CollectionOut:
     data["_id"] = col.id
     data["review_ids"] = reviews
     return CollectionOut(**data)
+
+
+async def _get_owned_collection(
+    collection_id: PydanticObjectId, user: User
+) -> Collection:
+    col = await Collection.find_one(
+        Collection.id == collection_id,
+        Collection.user_id == user.id,
+    )
+    if not col:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    return col
 
 
 # POST /api/collections
@@ -68,11 +82,69 @@ async def add_review_to_collection(
     )
     if not col:
         raise HTTPException(status_code=404, detail="Collection not found")
+    
+    #add review_id
+    
+    review = await Review.find_one(
+        Review.id == body.review_id,
+        Review.user_id == current_user.id,
+    )
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
 
     if body.review_id not in col.review_ids:
         col.review_ids.append(body.review_id)
+        col.updated_at = utc_now()
         await col.save()
 
+    return await _to_collection_out(col)
+
+
+# PATCH /api/collections/{id}/remove-review
+@router.patch("/{collection_id}/remove-review", response_model=CollectionOut)
+async def remove_review_from_collection(
+    collection_id: PydanticObjectId,
+    body: AddReviewRequest,
+    current_user: User = Depends(get_current_user),
+):
+    col = await _get_owned_collection(collection_id, current_user)
+
+    # Removing an ID that is not there is a no-op, like adding one twice; the
+    # review itself is not looked up, so a dead ID left by a deleted review
+    # can still be cleared.
+    if body.review_id in col.review_ids:
+        col.review_ids.remove(body.review_id)
+        col.updated_at = utc_now()
+        await col.save()
+
+    return await _to_collection_out(col)
+
+
+# PATCH /api/collections/{id} — rename / edit description
+@router.patch("/{collection_id}", response_model=CollectionOut)
+async def update_collection(
+    collection_id: PydanticObjectId,
+    body: UpdateCollectionRequest,
+    current_user: User = Depends(get_current_user),
+):
+    col = await _get_owned_collection(collection_id, current_user)
+
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    if "name" in updates:
+        name = (updates["name"] or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Collection name cannot be empty")
+        col.name = name
+    if "description" in updates:
+        # An empty description clears it.
+        col.description = (updates["description"] or "").strip() or None
+
+    col.updated_at = utc_now()
+    await col.save()
     return await _to_collection_out(col)
 
 

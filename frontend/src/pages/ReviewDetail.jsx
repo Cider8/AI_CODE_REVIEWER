@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Bug, ShieldAlert, Zap, Lightbulb, Code2, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { reviewApi } from "../services/api";
 import ReviewChat from "../components/ReviewChat";
+import AddToCollection from "../components/AddToCollection";
 
 const scoreTone = (score) => (score >= 70 ? "score-good" : score >= 40 ? "score-warn" : "score-bad");
 
@@ -76,6 +77,8 @@ export default function ReviewDetail() {
         </div>
       </div>
 
+      <AddToCollection reviewId={id} />
+
       {/* Summary */}
       <div className="card review-summary-card">
         <p className="review-summary-text">{review.summary}</p>
@@ -93,6 +96,7 @@ export default function ReviewDetail() {
             <div key={i} className="review-issue-card">
               <div className="review-issue-meta">
                 <span className={`badge badge-${b.severity}`}>{b.severity}</span>
+                {b.category && <span className="review-issue-category">{b.category}</span>}
                 {b.line && <span className="review-issue-line">Line {b.line}</span>}
               </div>
               <p className="review-issue-text">{b.description}</p>

@@ -1,13 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send, AlertTriangle } from "lucide-react";
 import { chatApi } from "../services/api";
-
-// FastAPI sends `detail` as a string for HTTPException, but as an array of
-// objects for 422 validation errors — which must not reach the user as-is.
-const readDetail = (err, fallback) => {
-  const detail = err?.response?.data?.detail;
-  return typeof detail === "string" ? detail : fallback;
-};
+import { errorMessage } from "../services/apiErrors";
 
 export default function ReviewChat({ reviewId }) {
   const [sessionId, setSessionId] = useState(null); // null = no session yet
@@ -41,7 +35,7 @@ export default function ReviewChat({ reviewId }) {
       const { data: history } = await chatApi.getMessages(data._id);
       setMessages(history);
     } catch (err) {
-      setError(readDetail(err, "Couldn't open the chat. Please try again."));
+      setError(errorMessage(err, "Couldn't open the chat. Please try again."));
     } finally {
       setStarting(false);
     }
@@ -73,12 +67,12 @@ export default function ReviewChat({ reviewId }) {
         // can exhaust it while this one still believes it has budget.
         setRemaining(0);
         setError(
-          `${readDetail(err, "Daily chat limit reached")} — your quota resets at midnight UTC.`,
+          `${errorMessage(err, "Daily chat limit reached")} — your quota resets at midnight UTC.`,
         );
       } else if (status === 502) {
         setError("The AI service didn't respond. Please try again in a moment.");
       } else {
-        setError(readDetail(err, "Couldn't send your message. Please try again."));
+        setError(errorMessage(err, "Couldn't send your message. Please try again."));
       }
     } finally {
       setSending(false);
@@ -135,14 +129,14 @@ export default function ReviewChat({ reviewId }) {
             key={msg._id === "pending" ? `pending-${i}` : msg._id}
             className={`review-chat-msg review-chat-msg-${msg.role}`}
           >
-            <span className="review-chat-msg-role">{msg.role === "user" ? "You" : "CodeLens"}</span>
+            <span className="review-chat-msg-role">{msg.role === "user" ? "You" : "KrishnaLens"}</span>
             <p className="review-chat-msg-text">{msg.content}</p>
           </div>
         ))}
 
         {sending && (
           <div className="review-chat-msg review-chat-msg-model">
-            <span className="review-chat-msg-role">CodeLens</span>
+            <span className="review-chat-msg-role">KrishnaLens</span>
             <p className="review-chat-msg-text review-chat-typing">
               <span /><span /><span />
             </p>
@@ -159,7 +153,7 @@ export default function ReviewChat({ reviewId }) {
 
       <div className="review-chat-input">
         <input
-          rows={1}
+          maxLength={4000}
           className="review-chat-input-field"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}

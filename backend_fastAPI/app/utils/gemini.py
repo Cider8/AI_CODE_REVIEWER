@@ -28,6 +28,7 @@ Respond ONLY with a valid JSON object in this exact structure (no markdown, no e
     {{
       "line": <line number or null>,
       "severity": "low|medium|high|critical",
+      "category": "short general bug category, e.g. Off-by-one error, Null handling, Unhandled exception",
       "description": "what the bug is",
       "suggestion": "how to fix it"
     }}

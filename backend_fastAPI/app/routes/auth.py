@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.review import Review
 from app.models.stats import UserStats
 from app.models.collection import Collection
+from app.models.chat import ChatSession, ChatMessage
 from app.dependencies import get_current_user, require_db
 from app.utils.security import hash_password, verify_password, create_access_token
 from app.utils.convert import doc_to_schema
@@ -93,7 +94,9 @@ async def change_password(
     current_user: User = Depends(get_current_user),
 ):
     if not verify_password(body.current_password, current_user.password):
-        raise HTTPException(status_code=401, detail="Current password is incorrect")
+        # 400, not 401: the caller is authenticated, and a 401 would make the
+        # client treat a typo as an expired session and log the user out.
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
 
     current_user.password = hash_password(body.new_password)
     await current_user.save()
@@ -105,6 +108,12 @@ async def change_password(
 @router.delete("/account", response_model=MessageResponse)
 async def delete_account(current_user: User = Depends(get_current_user)):
     user_id = current_user.id
+
+    sessions = await ChatSession.find(ChatSession.user_id == user_id).to_list()
+    session_ids = [sess.id for sess in sessions]
+    if session_ids:
+        await ChatMessage.find({"session_id": {"$in": session_ids}}).delete()
+    await ChatSession.find(ChatSession.user_id == user_id).delete()
 
     await Review.find(Review.user_id == user_id).delete()
     await UserStats.find(UserStats.user_id == user_id).delete()

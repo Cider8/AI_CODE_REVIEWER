@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.config import settings
 
 #import database for connect to mongodb
@@ -35,10 +37,26 @@ async def lifespan (app:FastAPI):
 
 # Create FastAPI app instance with metadata and lifespan events
 app = FastAPI(
-    title="Codelens AI Code_Review_API",
+    title="KrishnaLens AI Code Review API",
     version=settings.project_version,
     lifespan=lifespan,
 )
+
+# FastAPI's default 422 body echoes each rejected value back under "input" —
+# for a failed register or password change that is the plaintext password,
+# which then lands in browser devtools, proxies and client error logs. Only
+# where the error is and what is wrong are returned.
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        {"type": err.get("type"), "loc": list(err.get("loc", ())), "msg": err.get("msg")}
+        for err in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": errors},
+    )
+
 
 #cors origins for frontend and backend communication
 
@@ -60,5 +78,5 @@ app.include_router(chat.router)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Codelens AI Code_Review_API"}
+    return {"message": "Welcome to KrishnaLens AI Code Review API"}
 

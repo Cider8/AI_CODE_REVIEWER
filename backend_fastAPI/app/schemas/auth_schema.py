@@ -5,22 +5,38 @@ from pydantic import EmailStr, Field, field_validator
 
 from app.schemas.base import CamelModel
 
+PASSWORD_SPECIAL_CHARS = "!@#$%^&+=[]{}|;:,.<>?"
+PASSWORD_RULE_SEPARATOR = "; "
+
+
+def check_password_rules(v: str) -> str:
+    """Report every broken rule at once, joined by PASSWORD_RULE_SEPARATOR,
+    so the user can fix them all in one go. The length rule lives here rather
+    than in Field(min_length=...) because a failed Field constraint would stop
+    this validator from running and hide the other rules."""
+    failures = []
+    if len(v) < 8:
+        failures.append("Password must be at least 8 characters")
+    if not any(char.isupper() for char in v):
+        failures.append("Password must contain at least one uppercase letter")
+    if not any(char.islower() for char in v):
+        failures.append("Password must contain at least one lowercase letter")
+    if not any(char in PASSWORD_SPECIAL_CHARS for char in v):
+        failures.append("Password must contain at least one special character")
+    if failures:
+        raise ValueError(PASSWORD_RULE_SEPARATOR.join(failures))
+    return v
+
 
 class RegisterRequest(CamelModel):
     name: str
     email: EmailStr
-    password: str = Field(min_length=8)
-    
+    password: str
+
     @field_validator("password")
     @classmethod
     def validate_password(cls, v):
-        if not any(char.isupper() for char in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not any(char.islower() for char in v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not any(char in "!@#$%^&+=[]{}|;:,.<>?" for char in v):
-            raise ValueError("Password must contain at least one special character")
-        return v
+        return check_password_rules(v)
 
 
 class LoginRequest(CamelModel):
@@ -49,18 +65,12 @@ class UpdateProfileRequest(CamelModel):
 
 class ChangePasswordRequest(CamelModel):
     current_password: str
-    new_password: str = Field(min_length=8)
-    
+    new_password: str
+
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, v):
-        if not any(char.isupper() for char in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not any(char.islower() for char in v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not any(char in "!@#$%^&+=[]{}|;:,.<>?" for char in v):
-            raise ValueError("Password must contain at least one special character")
-        return v
+        return check_password_rules(v)
     
 class MessageResponse(CamelModel):
     message: str

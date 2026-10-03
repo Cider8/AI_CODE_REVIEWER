@@ -69,6 +69,15 @@ async def _consume_chat_quota(current_user: User) -> int:
     return DAILY_CHAT_LIMIT - stats.daily_chat_count
 
 
+async def _refund_chat_quota(current_user: User) -> None:
+    """Give back the message charged for a question the model never answered.
+    Only within the same UTC day: after a rollover the counter is already fresh."""
+    stats = await get_or_create_stats(current_user.id)
+    if stats.chat_count_date == utc_now().date() and stats.daily_chat_count > 0:
+        stats.daily_chat_count -= 1
+        await stats.save()
+
+
 # POST /api/chat/reviews/{review_id}/start — open a session for one review
 @router.post(
     "/reviews/{review_id}/start",
@@ -158,8 +167,12 @@ async def post_chat_message(
             history=[{"role": m.role, "content": m.content} for m in history],
             question=body.content,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        # Any failure from the model (bad output, timeout, provider error) is
+        # the service's fault, not the user's: refund the quota and report 502.
+        await _refund_chat_quota(current_user)
+        detail = str(e) if isinstance(e, ValueError) else "AI service did not respond"
+        raise HTTPException(status_code=502, detail=detail)
 
     # Persisted only once the model answered, so a failed call leaves no
     # dangling user turn in the transcript. Inserted one at a time rather than

@@ -9,6 +9,9 @@ from app.utils.time import utc_now
 
 class Bug(CamelModel):
     line: Optional[int] = None
+    # Short label such as "Off-by-one error"; feeds the dashboard's common
+    # weaknesses. Optional so reviews saved before it existed still load.
+    category: Optional[str] = None
     description: str
     severity: Literal["low", "medium", "high", "critical"]
     suggestion: str

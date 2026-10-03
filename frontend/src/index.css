@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 
 :root {
@@ -743,3 +741,81 @@ input:focus, textarea:focus, select:focus {
 .review-chat-input textarea:disabled { opacity: 0.55; cursor: not-allowed; }
 .review-chat-input .btn { flex-shrink: 0; }
 .review-chat-input .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ==========================================================================
+   Add to collection (ReviewDetail)
+   ========================================================================== */
+.add-to-collection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.add-to-collection-select { min-width: 220px; max-width: 100%; }
+.add-to-collection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--success);
+}
+.add-to-collection-status.is-error { color: var(--danger); }
+.add-to-collection-hint { color: var(--text2); font-size: 13px; margin-bottom: 16px; }
+
+/* ==========================================================================
+   Field hint / validation errors (Register, Profile)
+   ========================================================================== */
+.field-hint { margin-top: 6px; font-size: 12px; color: var(--text2); line-height: 1.4; }
+.field-errors {
+  margin-top: 6px;
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--danger);
+}
+input[aria-invalid="true"] { border-color: var(--danger); }
+
+/* ==========================================================================
+   Collections: edit / remove (Collections page)
+   ========================================================================== */
+.collections-card-actions { display: flex; gap: 10px; align-items: center; }
+.collections-icon-btn { background: none; border: none; color: var(--text2); cursor: pointer; }
+.collections-icon-btn:hover { color: var(--accent); }
+.collections-edit-form { margin-bottom: 12px; }
+.collections-error { font-size: 12px; color: var(--danger); margin-bottom: 8px; }
+.collections-remove-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+.collections-remove-btn:hover { color: var(--danger); background: #ff4d6a14; }
+.collections-more-btn { background: none; border: none; cursor: pointer; width: 100%; }
+.collections-more-btn:hover { color: var(--accent); }
+
+/* ==========================================================================
+   Dashboard: common weaknesses
+   ========================================================================== */
+.dashboard-weaknesses { margin-bottom: 24px; }
+.dashboard-weakness-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.dashboard-weakness-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: #ff4d6a14;
+  border: 1px solid #ff4d6a44;
+  color: var(--text);
+}
+.dashboard-weakness-rank { font-family: var(--font-mono); font-size: 11px; color: var(--danger); }
+
+/* Review detail: bug kind */
+.review-issue-category { font-size: 12px; color: var(--text2); }

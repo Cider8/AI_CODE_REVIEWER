@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Code2, Search, Trash2 } from "lucide-react";
 import { reviewApi } from "../services/api";
+import { LANGUAGES } from "../constants";
 
-const LANGUAGES = ["All","JavaScript","TypeScript","Python","Java","C++","Go","Rust","Ruby","PHP"];
+const FILTERS = ["All", ...LANGUAGES];
 
 export default function History() {
   const [reviews, setReviews] = useState([]);
@@ -59,7 +60,7 @@ export default function History() {
           <button type="submit" className="btn btn-ghost">Search</button>
         </form>
         <select className="history-select" value={lang} onChange={e => { setLang(e.target.value); setPage(1); }}>
-          {LANGUAGES.map(l => <option key={l}>{l}</option>)}
+          {FILTERS.map(l => <option key={l}>{l}</option>)}
         </select>
       </div>
 

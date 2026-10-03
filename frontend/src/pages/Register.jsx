@@ -2,22 +2,28 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { Cpu, Loader } from "lucide-react";
+import { errorMessage, fieldErrors } from "../services/apiErrors";
+import { PASSWORD_HINT } from "../constants";
+import { FieldHint, FieldErrors } from "../components/FieldNotes";
 
 export default function Register() {
   const [form, setForm]   = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
+  const [fieldErrs, setFieldErrs] = useState({}); // 422 messages keyed by field
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate     = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError(""); setFieldErrs({}); setLoading(true);
     try {
       await register(form.name, form.email, form.password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
+      const byField = fieldErrors(err);
+      setFieldErrs(byField);
+      if (!Object.keys(byField).length) setError(errorMessage(err, "Registration failed"));
     } finally {
       setLoading(false);
     }
@@ -41,11 +47,22 @@ export default function Register() {
             {[
               { key: "name",     label: "Name",     type: "text",     placeholder: "Your name" },
               { key: "email",    label: "Email",    type: "email",    placeholder: "you@example.com" },
-              { key: "password", label: "Password", type: "password", placeholder: "Min 8 characters" },
-            ].map(({ key, label, type, placeholder }) => (
+              { key: "password", label: "Password", type: "password", placeholder: "Choose a password", hint: PASSWORD_HINT },
+            ].map(({ key, label, type, placeholder, hint }) => (
               <div key={key}>
-                <label className="field-label">{label}</label>
-                <input type={type} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={placeholder} required />
+                <label className="field-label" htmlFor={`reg-${key}`}>{label}</label>
+                <input
+                  id={`reg-${key}`}
+                  type={type}
+                  value={form[key]}
+                  onChange={e => setForm({ ...form, [key]: e.target.value })}
+                  placeholder={placeholder}
+                  aria-invalid={!!fieldErrs[key]}
+                  aria-describedby={[hint && `reg-${key}-hint`, fieldErrs[key] && `reg-${key}-err`].filter(Boolean).join(" ") || undefined}
+                  required
+                />
+                {hint && <FieldHint id={`reg-${key}-hint`}>{hint}</FieldHint>}
+                <FieldErrors id={`reg-${key}-err`} errors={fieldErrs[key]} />
               </div>
             ))}
             <button type="submit" className="btn btn-primary btn-block" disabled={loading}>

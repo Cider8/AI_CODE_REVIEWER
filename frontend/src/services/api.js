@@ -9,11 +9,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login on 401
+// Redirect to login on 401. Login is the one endpoint where 401 means
+// "wrong credentials" rather than an invalid session, so the page shows it.
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && err.config?.url !== "/auth/login") {
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
@@ -45,6 +46,15 @@ export const collectionApi = {
   getCollections: () => api.get("/collections"),
   createCollection: (payload) => api.post("/collections", payload),
   deleteCollection: (id) => api.delete(`/collections/${id}`),
+  // Idempotent; returns the updated collection with reviewIds populated.
+  addReview: (collectionId, reviewId) =>
+    api.patch(`/collections/${collectionId}/add-review`, { reviewId }),
+  // Never deletes the review itself; removing an absent ID is a no-op.
+  removeReview: (collectionId, reviewId) =>
+    api.patch(`/collections/${collectionId}/remove-review`, { reviewId }),
+  // payload: { name?, description? }; description "" clears it.
+  updateCollection: (collectionId, payload) =>
+    api.patch(`/collections/${collectionId}`, payload),
 };
 
 // Chat API — paths mirror app/routes/chat.py; the body key is `content`.

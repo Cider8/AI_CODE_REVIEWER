@@ -36,6 +36,11 @@ class AddReviewRequest(CamelModel):
     review_id: PydanticObjectId
 
 
+class UpdateCollectionRequest(CamelModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
 class CollectionOut(CamelModel):
     id: PydanticObjectId = Field(alias="_id")
     user_id: PydanticObjectId

@@ -3,24 +3,28 @@ import { useNavigate } from "react-router-dom";
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Code2, Bug, ShieldAlert, Star, Plus } from "lucide-react";
 import { statsApi } from "../services/api";
+import { unavailableMessage } from "../services/apiErrors";
 
 const COLORS = ["#7c6aff", "#00e5b0", "#ff4d6a", "#ffb347", "#60a5fa"];
 
 export default function Dashboard() {
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     statsApi.getDashboardStats()
       .then(({ data }) => setData(data))
+      .catch((err) => setLoadError(unavailableMessage(err) || "Failed to load stats."))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="page page-subtle">Loading dashboard...</div>;
-  if (!data)   return <div className="page score-bad">Failed to load stats.</div>;
+  if (!data)   return <div className="page score-bad">{loadError || "Failed to load stats."}</div>;
 
   const { stats, recentReviews } = data;
+  const weaknesses = stats.commonWeaknesses ?? []; // most frequent first, max 5
 
   const scoreData = stats.scoreHistory.slice(-10).map((s, i) => ({
     review: `#${i + 1}`,
@@ -111,6 +115,23 @@ export default function Dashboard() {
             <div className="dashboard-empty-state dashboard-empty-state-sm">No data yet</div>
           )}
         </div>
+      </div>
+
+      {/* Common weaknesses */}
+      <div className="card dashboard-weaknesses">
+        <h3 className="dashboard-section-label dashboard-section-label-mb">COMMON WEAKNESSES</h3>
+        {weaknesses.length === 0 ? (
+          <p className="page-muted">No recurring weaknesses yet.</p>
+        ) : (
+          <ol className="dashboard-weakness-list">
+            {weaknesses.map((w, i) => (
+              <li key={w} className="dashboard-weakness-chip">
+                <span className="dashboard-weakness-rank">#{i + 1}</span>
+                {w}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       {/* Recent reviews */}
