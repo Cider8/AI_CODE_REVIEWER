@@ -29,6 +29,12 @@ export const authApi = {
   updateProfile: (payload) => api.patch("/auth/profile", payload),
   changePassword: (payload) => api.patch("/auth/password", payload),
   deleteAccount: () => api.delete("/auth/account"),
+  // Forgot-password flow (#22–#24). The resetToken is NOT a login token:
+  // it is sent only in the #24 body and never stored or used as Authorization.
+  forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
+  verifyResetCode: (email, code) => api.post("/auth/verify-reset-code", { email, code }),
+  resetPassword: (resetToken, newPassword) =>
+    api.post("/auth/reset-password", { resetToken, newPassword }),
 };
 
 export const reviewApi = {

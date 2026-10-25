@@ -134,7 +134,7 @@ export default function Collections() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim()) return setError("Collection name cannot be empty");
     setError("");
     try {
       await collectionApi.createCollection({ name: newName.trim(), description: newDesc.trim() || undefined });

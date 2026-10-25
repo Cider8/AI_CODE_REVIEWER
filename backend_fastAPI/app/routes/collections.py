@@ -53,10 +53,14 @@ async def create_collection(
     body: CreateCollectionRequest,
     current_user: User = Depends(get_current_user),
 ):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Collection name cannot be empty")
+
     col = Collection(
         user_id=current_user.id,
-        name=body.name,
-        description=body.description,
+        name=name,
+        description=(body.description or "").strip() or None,
     )
     await col.insert()
     return await _to_collection_out(col)

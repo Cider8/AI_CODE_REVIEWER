@@ -11,7 +11,7 @@ from app.models.review import Review
 from app.models.collection import Collection
 from app.models.chat import ChatSession, ChatMessage
 from app.dependencies import get_current_user, require_db
-from app.utils.gemini import analyze_code
+from app.utils.gemini import AIResponseError, analyze_code
 from app.utils.convert import doc_to_schema
 from app.utils.stats import recompute_stats
 from app.utils.time import utc_now
@@ -33,7 +33,7 @@ async def create_review(
 ):
     try:
         ai_result = await analyze_code(body.original_code, body.language)
-    except ValueError as e:
+    except AIResponseError as e:
         raise HTTPException(status_code=502, detail=str(e))
     except Exception:
         # Provider/transport failures (timeouts, quota, auth) are upstream

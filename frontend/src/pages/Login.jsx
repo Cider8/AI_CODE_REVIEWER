@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { Cpu, Loader } from "lucide-react";
 import { errorMessage } from "../services/apiErrors";
@@ -10,6 +10,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login }   = useAuth();
   const navigate    = useNavigate();
+  // Set by the forgot-password flow after a successful reset.
+  const notice      = useLocation().state?.notice;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,6 +39,7 @@ export default function Login() {
         <div className="card">
           <h2 className="auth-card-title">Sign in</h2>
 
+          {notice && !error && <div className="status-message status-message-success auth-notice">{notice}</div>}
           {error && <div className="status-banner">{error}</div>}
 
           <form onSubmit={handleSubmit} className="form-stack">
@@ -45,7 +48,10 @@ export default function Login() {
               <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" required />
             </div>
             <div>
-              <label className="field-label">Password</label>
+              <div className="auth-label-row">
+                <label className="field-label">Password</label>
+                <Link to="/forgot-password" state={{ email: form.email }} className="auth-footer-link auth-forgot-link">Forgot password?</Link>
+              </div>
               <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="••••••••" required />
             </div>
             <button type="submit" className="btn btn-primary btn-block" disabled={loading}>

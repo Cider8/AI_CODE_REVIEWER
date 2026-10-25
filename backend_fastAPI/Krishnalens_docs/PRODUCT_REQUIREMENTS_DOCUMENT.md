@@ -4,7 +4,7 @@
 |---|---|
 | **Product** | KrishnaLens, an AI code reviewer |
 | **Document type** | Product Requirements Document (PRD) |
-| **Version** | 1.0 |
+| **Version** | 1.4 |
 | **Status** | Draft for review |
 | **Perspective** | Describes the product from the user's side only: what people see, do and get |
 
@@ -38,6 +38,7 @@
    - 6.10 [Collections](#610-collections)
    - 6.11 [Profile and settings](#611-profile-and-settings)
    - 6.12 [Deleting an account](#612-deleting-an-account)
+   - 6.13 [Resetting a forgotten password](#613-resetting-a-forgotten-password)
 7. [Messages, Feedback and Error States](#7-messages-feedback-and-error-states)
 8. [Product Rules and Limits](#8-product-rules-and-limits)
 9. [Quality Requirements](#9-quality-requirements)
@@ -110,6 +111,8 @@ KrishnaLens should do next.
 | **Collection** | A named folder a member creates to group related reviews, such as "Interview Practice". |
 | **Preferred languages** | Languages a member marks on their profile as the ones they mainly use. |
 | **Danger zone** | The area of the profile page holding the irreversible action of deleting the account. |
+| **Forgot password** | The way a member who can't remember their password sets a new one, by proving they own the account's email address. |
+| **Reset code** | A 6-digit number emailed to a member who asked to reset their password. It works once, for a limited time. |
 
 ---
 
@@ -185,6 +188,14 @@ available instantly, and can watch their skills improve over time.
 2. They confirm twice.
 3. Their account and all of their content are removed, and they are signed out.
 
+
+### J7: Forgetting a password
+1. On the sign-in page, a member who can't remember their password chooses **Forgot password?**.
+2. They enter their email address and choose **Send code**.
+3. A 6-digit code arrives by email. They type it in and choose **Verify**.
+4. They choose a new password, type it twice and choose **Update password**.
+5. They're taken back to the sign-in page and sign in with the new password.
+
 ---
 
 ## 6. Functional Requirements
@@ -222,6 +233,7 @@ available instantly, and can watch their skills improve over time.
 | PR-SIGN-04 | When a member's sign-in has expired or is no longer valid, the next action they take must return them to the sign-in page. | Must |
 | PR-SIGN-05 | A member must be able to sign out at any time. | Must |
 | PR-SIGN-06 | A visitor who tries to open a members-only page must be sent to the sign-in page. | Must |
+| PR-SIGN-07 | The sign-in page must have a **Forgot password?** link that opens the password reset steps (see 6.13). | Must |
 
 ### 6.4 Navigation
 
@@ -346,6 +358,29 @@ available instantly, and can watch their skills improve over time.
 
 ---
 
+### 6.13 Resetting a forgotten password
+
+The reset takes three steps, each on its own screen: **enter email → enter code → choose new password**.
+
+| ID | Requirement | Priority |
+|---|---|---|
+| PR-FPW-01 | From the sign-in page, a visitor must be able to choose **Forgot password?** and reach a screen asking for their **email address**. | Must |
+| PR-FPW-02 | After the email is submitted, the product must always show the same message: "If an account exists for this email, we've sent a 6-digit code to it." It must **never reveal** whether that email has an account. | Must |
+| PR-FPW-03 | If the email belongs to an account, a **6-digit reset code** must be sent to it. The email must say the code expires in 15 minutes and that the member can ignore it if they didn't ask for a reset. | Must |
+| PR-FPW-04 | After the email is sent, the product must move to a screen where the member enters the 6-digit code. The email address stays shown so they know where to look. | Must |
+| PR-FPW-05 | The code screen must offer **Resend code**. It can be used once every **60 seconds**; while waiting, the screen shows a countdown. Requesting a new code makes any earlier code stop working. | Must |
+| PR-FPW-06 | A code is valid for **15 minutes** and can be used **once**. | Must |
+| PR-FPW-07 | A wrong, expired or already-used code must show "Invalid or expired code". After **5 tries** on one code, that code stops working, and the member must request a new one. | Must |
+| PR-FPW-08 | The code field must accept digits only, exactly 6 of them. | Must |
+| PR-FPW-09 | After a correct code, the member must reach a screen to **choose a new password**, typing it twice. The same password rules and hint as at sign-up apply (PR-ACC-03, PR-ACC-04, PR-ACC-07). If the two entries differ, the member sees "Passwords don't match" before anything is sent. | Must |
+| PR-FPW-10 | The new-password screen must be completed within **10 minutes** of verifying the code. Otherwise the member sees "Your reset session has expired. Please start again." and returns to the first step. | Must |
+| PR-FPW-11 | After a successful change, the member must see "Password updated. Please sign in with your new password." and be taken to the sign-in page. The old password stops working immediately. | Must |
+| PR-FPW-12 | Each completed reset works only once. Going back and submitting the same step again must not change the password a second time. | Must |
+| PR-FPW-13 | If password reset is temporarily unavailable (for example, email can't be sent), the member must see a clear "not available right now, please try again later" message. | Must |
+| PR-FPW-14 | A member who is signed in elsewhere is not signed out by a reset. | Should (accepted limitation) |
+
+*Acceptance:* request a code for a registered email → an email arrives with 6 digits → entering a wrong code shows "Invalid or expired code" → entering the right code opens the new-password screen → a weak password lists the failed rules → a valid password shows the success message → signing in with the old password fails and with the new one succeeds.
+
 ## 7. Messages, Feedback and Error States
 
 | Situation | What the member sees |
@@ -364,6 +399,11 @@ available instantly, and can watch their skills improve over time.
 | Dashboard can't load | "Failed to load stats." |
 | Service temporarily unavailable | A clear "please try again later" message, never a blank page |
 | Sign-in expired | Returned to the sign-in page |
+| Forgot password: email submitted | "If an account exists for this email, we've sent a 6-digit code to it." |
+| Wrong, expired or used reset code | "Invalid or expired code" |
+| Reset took too long / repeated | "Your reset session has expired. Please start again." |
+| Password reset succeeded | "Password updated. Please sign in with your new password." |
+| Password reset unavailable | "Password reset by email is not available right now" (try again later) |
 
 General rules:
 - Every action that changes something (save, add, delete) must confirm success or explain the failure.
@@ -391,6 +431,10 @@ General rules:
 | Dashboard figures cover | Reviews the member still has |
 | Collections per review | No limit |
 | Who can see a member's content | Only that member |
+| Reset code | 6 digits, valid 15 minutes, single use |
+| Reset code tries | 5 per code |
+| Resend a reset code | At most once every 60 seconds |
+| Time to choose the new password after verifying | 10 minutes |
 
 ---
 
@@ -417,7 +461,6 @@ General rules:
 ## 10. Out of Scope
 
 - Signing in through other services (e.g. "Sign in with Google").
-- Password reset by email ("Forgot password").
 - Changing the email address on an account.
 - Uploading files or connecting code repositories.
 - Running the member's code.
@@ -508,7 +551,7 @@ JavaScript · TypeScript · Python · Java · C++ · C · Go · Rust · Ruby · 
 |---|---|
 | Welcome page | PR-WEL-01 – 04 |
 | Account creation | PR-ACC-01 – 07 |
-| Sign in / out | PR-SIGN-01 – 06 |
+| Sign in / out | PR-SIGN-01 – 07 |
 | Navigation | PR-NAV-01 – 03 |
 | New review | PR-REV-01 – 08 |
 | Review report | PR-RPT-01 – 13 |
@@ -518,6 +561,7 @@ JavaScript · TypeScript · Python · Java · C++ · C · Go · Rust · Ruby · 
 | Collections | PR-COL-01 – 11 |
 | Profile | PR-PRF-01 – 10 |
 | Account deletion | PR-DEL-01 – 05 |
+| Forgot password | PR-FPW-01 – 14 (and PR-SIGN-07) |
 | Quality | PR-Q-01 – 13 |
 
 ---
@@ -529,5 +573,6 @@ JavaScript · TypeScript · Python · Java · C++ · C · Go · Rust · Ruby · 
 | 1.1 | 3 Oct 2026 | Product name set to KrishnaLens (Q1). Password hint requirements added (PR-ACC-07, PR-PRF-10, Q2). |
 | 1.2 | 3 Oct 2026 | All remaining open questions resolved (Q3–Q10): password error detail, clean-up on review deletion, dashboard reflects current reviews (PR-DSH-08), full account deletion, common weaknesses defined, collection remove/rename (PR-COL-11), failed chat questions not counted, full History language list. |
 | 1.3 | 4 Oct 2026 | All open questions confirmed done on screen (Q1–Q3, Q7, Q8, Q10). |
+| 1.4 | 4 Oct 2026 | Added **Forgot password** (section 6.13, PR-FPW-01 – 14, PR-SIGN-07, journey J7, terminology, messages and limits). Removed it from Out of Scope. |
 
 *End of document.*
