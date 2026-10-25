@@ -15,6 +15,22 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:5173"
 
+    # Outgoing email (forgot-password codes).
+    #   log   - print to the server log (local development)
+    #   brevo - Brevo HTTPS API (works where SMTP ports are blocked, e.g. Render free)
+    #   smtp  - any SMTP server (Gmail app password, Amazon SES SMTP on AWS, ...)
+    # Empty disables email; forgot-password then answers 503.
+    email_provider: str = ""
+    email_from: str | None = None  # e.g. "KrishnaLens <no-reply@example.com>"
+
+    brevo_api_key: str | None = None
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_ssl: bool = False    # True for port 465; otherwise STARTTLS is used
+
     project_version: str = "1.0.0"
 
     model_config = SettingsConfigDict(

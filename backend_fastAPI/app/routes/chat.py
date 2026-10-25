@@ -10,7 +10,7 @@ from app.models.stats import UserStats
 from app.models.user import User
 from app.dependencies import get_current_user, require_db
 from app.utils.convert import doc_to_schema
-from app.utils.gemini import chat_about_review
+from app.utils.gemini import AIResponseError, chat_about_review
 from app.utils.stats import get_or_create_stats
 from app.utils.time import utc_now
 from app.schemas.chat_schema import (
@@ -171,7 +171,7 @@ async def post_chat_message(
         # Any failure from the model (bad output, timeout, provider error) is
         # the service's fault, not the user's: refund the quota and report 502.
         await _refund_chat_quota(current_user)
-        detail = str(e) if isinstance(e, ValueError) else "AI service did not respond"
+        detail = str(e) if isinstance(e, AIResponseError) else "AI service did not respond"
         raise HTTPException(status_code=502, detail=detail)
 
     # Persisted only once the model answered, so a failed call leaves no

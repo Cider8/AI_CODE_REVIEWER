@@ -74,3 +74,28 @@ class ChangePasswordRequest(CamelModel):
     
 class MessageResponse(CamelModel):
     message: str
+
+
+# ── Forgot password ──────────────────────────────────────────────────────
+class ForgotPasswordRequest(CamelModel):
+    email: EmailStr
+
+
+class VerifyResetCodeRequest(CamelModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class VerifyResetCodeResponse(CamelModel):
+    reset_token: str
+    expires_in_minutes: int
+
+
+class ResetPasswordRequest(CamelModel):
+    reset_token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v):
+        return check_password_rules(v)

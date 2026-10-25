@@ -7,6 +7,7 @@ from app.models.review import Review
 from app.models.stats import UserStats
 from app.models.collection import Collection
 from app.models.chat import ChatSession, ChatMessage
+from app.models.password_reset import PasswordReset
 
 db_connected = False
 _client: AsyncIOMotorClient | None = None
@@ -24,7 +25,7 @@ async def init_db():
 
     await init_beanie(
         database=db,
-        document_models=[User, Review, UserStats, Collection, ChatSession, ChatMessage],
+        document_models=[User, Review, UserStats, Collection, ChatSession, ChatMessage, PasswordReset],
     )
     db_connected = True
 

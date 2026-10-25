@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "backend",
-      "runtimeExecutable": "/Users/kajalk/Desktop/Projects/AI_CODE_REVIEWER/.venv/bin/uvicorn",
+      "runtimeExecutable": "/Users/kajalk/Desktop/Projects/AI_CODE_REVIEWER/backend_fastAPI/.venv/bin/uvicorn",
       "runtimeArgs": ["app.main:app", "--reload", "--port", "8000"],
       "port": 8000
     }

@@ -4,7 +4,7 @@
 |---|---|
 | **Product** | KrishnaLens, an AI code reviewer |
 | **Document type** | Product Design Document (technical design) |
-| **Version** | 1.1 |
+| **Version** | 1.4 |
 | **Date** | 4 October 2026 |
 | **Owner** | Backend Engineer |
 | **Companion document** | `PRODUCT_REQUIREMENTS_DOCUMENT.md` describes *what* the product does. This document describes *how* it is built. Requirement IDs (`PR-…`) refer to that document. |
@@ -42,6 +42,7 @@
    - 4.1 [Google Gemini](#41-google-gemini)
    - 4.2 [MongoDB Atlas](#42-mongodb-atlas)
    - 4.3 [Hosting (Render)](#43-hosting-render)
+   - 4.4 [Email](#44-email)
 5. [Data Storage Design](#5-data-storage-design)
    - 5.1 [Overview and relationships](#51-overview-and-relationships)
    - 5.2 [Collection schemas](#52-collection-schemas)
@@ -105,7 +106,7 @@ and a follow-up chat per review.
  ┌──────────────────┐        ┌─────────────────────┐
  │  MongoDB Atlas   │        │   Google Gemini     │
  │  db: DB_NAME     │        │   gemini-3.6-flash  │
- │  6 collections   │        │   (review + chat)   │
+ │  7 collections   │        │   (review + chat)   │
  └──────────────────┘        └─────────────────────┘
 ```
 
@@ -151,12 +152,13 @@ backend_fastAPI/app/
  request ─► CORS middleware
          ─► route match (404 if none)
          ─► router dependency: require_db ──── DB not connected? ──► 503
-         ─► body / path validation ────────── invalid? ───────────► 422 (sanitised)
-         ─► get_current_user ──────────────── bad/missing token? ─► 401
+         ─► get_current_user (🔒 routes) ──── bad/missing token? ─► 401
+         ─► body / path / query validation ── invalid? ───────────► 422 (sanitised)
          ─► handler: ownership-filtered queries ── not found? ───► 404
          ─► (optional) Gemini call ───────────── failed? ─────────► 502
          ─► response model → camelCase JSON ──────────────────────► 2xx
 ```
+Order matters for clients: on a 🔒 route, a missing or invalid token gives **401 before any 422**. FastAPI resolves dependencies (`require_db`, `get_current_user`) before it reports body validation errors. So an unauthenticated request with an invalid body gets 401, not 422.
 
 ---
 
@@ -233,6 +235,12 @@ unavailable"** instead of crashing. `GET /` still works.
 | `JWT_EXPIRE_DAYS` | no | `7` | Token lifetime |
 | `GEMINI_API_KEY` | **yes** | — | Google AI Studio key |
 | `FRONTEND_URL` | no | `http://localhost:5173` | Allowed CORS origin |
+| `EMAIL_PROVIDER` | for forgot-password | — (disabled) | `log` (dev: print to server log) · `brevo` (HTTPS API) · `smtp`. Empty → #22 returns 503 |
+| `EMAIL_FROM` | for brevo/smtp | — | Sender, e.g. `KrishnaLens <no-reply@example.com>`. For Brevo it must be a verified sender |
+| `BREVO_API_KEY` | for brevo | — | Brevo transactional email API key |
+| `SMTP_HOST` / `SMTP_PORT` | for smtp | — / `587` | e.g. `email-smtp.<region>.amazonaws.com` (SES) or `smtp.gmail.com` |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | for smtp | — | SMTP login (SES SMTP credentials, Gmail app password, ...) |
+| `SMTP_USE_SSL` | no | `false` | `true` for implicit TLS on 465, otherwise STARTTLS |
 
 The app won't start if a required variable is missing.
 
@@ -246,7 +254,7 @@ The app won't start if a required variable is missing.
 - Every route except `GET /` also returns **503** when the database is down.
 - Every 🔒 route also returns **401** for a missing or invalid token.
 - Any path parameter that is an ObjectId must be a 24-character hex string, otherwise **422**.
-- Timestamps are ISO-8601 UTC without a timezone suffix, e.g. `"2026-10-04T09:15:30.123000"`.
+- Timestamps are ISO-8601 UTC without a timezone suffix, at **millisecond** precision (the precision MongoDB stores), e.g. `"2026-10-04T09:15:30.123000"`. A create response and a later read of the same resource return the identical value.
 
 ### 3.2 Endpoint summary
 
@@ -273,6 +281,9 @@ The app won't start if a required variable is missing.
 | 19 | POST | `/api/chat/reviews/{reviewId}/start` | 🔒 | Open / resume chat for a review | 201 |
 | 20 | GET | `/api/chat/sessions/{sessionId}/messages` | 🔒 | Chat history | 200 |
 | 21 | POST | `/api/chat/sessions/{sessionId}/messages` | 🔒 | Ask a question | 201 |
+| 22 | POST | `/api/auth/forgot-password` | – | Email a 6-digit reset code | 200 |
+| 23 | POST | `/api/auth/verify-reset-code` | – | Exchange the code for a reset token | 200 |
+| 24 | POST | `/api/auth/reset-password` | – | Set a new password with the reset token | 200 |
 
 ### 3.3 Shared response objects
 
@@ -381,6 +392,44 @@ Request: `{ "currentPassword": "Password#1", "newPassword": "NewPass#22" }`
 
 Existing tokens stay valid after a password change.
 
+#### `POST /api/auth/forgot-password` (#22)
+Step 1 of 3. Request: `{ "email": "priya@example.com" }`
+
+| Status | Body |
+|---|---|
+| **200** | `{ "message": "If an account exists for this email, we've sent a 6-digit code to it." }` (the **same** answer for known and unknown emails) |
+| 422 | Malformed email |
+| 503 | `"Password reset by email is not available right now"` (email provider not configured) |
+
+Behaviour:
+- Email matching: spaces are trimmed and the domain is lowercased; the part before `@` must match exactly (§8 L12). Clients should trim, not lowercase.
+- An `Authorization` header, if sent, is ignored by #22–#24.
+- Known email: any previous pending code is replaced by a new one. The code is valid for 15 minutes and is emailed after the response is sent (background task), so response time doesn't reveal whether the account exists.
+- Requests within **60 s** of the last code don't send another email, but still return the same 200. The client shows a 60 s resend countdown.
+- If the send fails, it is logged and the pending code is dropped, so the user can retry immediately.
+
+#### `POST /api/auth/verify-reset-code` (#23)
+Step 2 of 3. Request: `{ "email": "priya@example.com", "code": "042917" }` (`code` must match `^[0-9]{6}$`: ASCII digits only. Other Unicode digits such as `１２３４５６` give 422 and don't use up an attempt)
+
+| Status | Body |
+|---|---|
+| **200** | `{ "resetToken": "<JWT>", "expiresInMinutes": 10 }` |
+| 400 | `"Invalid or expired code"` for every failure: unknown email, wrong code, expired, already verified, or more than 5 attempts |
+| 422 | `code` isn't 6 digits / malformed email |
+
+Every call counts toward the code's 5-attempt cap, checked atomically. When the cap is reached, the code is deleted. The `resetToken` is a JWT with `purpose: "password_reset"`. It is **not** a login token: every 🔒 route rejects it with 401.
+
+#### `POST /api/auth/reset-password` (#24)
+Step 3 of 3. Request: `{ "resetToken": "<JWT from #23>", "newPassword": "NewPass#22" }`
+
+| Status | Body |
+|---|---|
+| **200** | `{ "message": "Password updated. Please sign in with your new password." }` |
+| 400 | `"Your reset session has expired. Please start again."` (bad or expired token, already used, or superseded by a newer code) |
+| 422 | `newPassword` rule failures (same format as #2) |
+
+The verified reset record is consumed atomically, so a token works **once**. No login token is returned: the client sends the user to `/login`. Existing sessions on other devices stay valid (see §8 L6).
+
 #### `DELETE /api/auth/account` 🔒
 | Status | Body |
 |---|---|
@@ -403,7 +452,7 @@ Request:
 |---|---|
 | **201** | `ReviewDetail` |
 | 422 | Empty `originalCode` / missing `language` |
-| 502 | `"AI response was not valid JSON: …"`, a validation message when the AI's JSON has the wrong shape, or `"AI service did not respond"` for provider/transport errors. The client shows its own fixed message for every 502. |
+| 502 | One of exactly: `"AI returned an empty response"` (blank or blocked reply) · `"AI response was not valid JSON"` · `"AI response did not match the expected format"` · `"AI service did not respond"` (provider/transport error). No provider or SDK text is ever passed through. The client shows its own fixed message for every 502. |
 
 Side effects: inserts the review and recalculates the user's stats.
 
@@ -471,6 +520,7 @@ Request: `{ "name": "DSA Practice", "description": "optional" }`
 | Status | Body |
 |---|---|
 | **201** | `CollectionOut` (with empty `reviewIds`) |
+| 400 | `"Collection name cannot be empty"` (blank or whitespace-only `name`) |
 | 422 | Missing `name` |
 
 #### `GET /api/collections` 🔒
@@ -544,7 +594,7 @@ Request: `{ "content": "Why is line 4 an off-by-one?" }` (1–4000 characters)
 | 404 | `"Chat session not found"` / `"Review for this session no longer exists"` |
 | 422 | Empty or over-length `content` |
 | 429 | `"Daily chat limit of 20 messages reached"` |
-| 502 | `"AI returned an empty response"` / `"AI service did not respond"` (the quota is refunded) |
+| 502 | Exactly `"AI returned an empty response"` (blank or blocked reply) or `"AI service did not respond"` (any other failure). The quota is refunded |
 
 ---
 
@@ -576,12 +626,12 @@ Request: `{ "content": "Why is line 4 an off-by-one?" }` (1–4000 characters)
    }
    ```
 2. **Parsing.** Strip any ```` ```json ```` / ```` ``` ```` fences, run `json.loads`, then validate with the `AIReviewResult` Pydantic model (score must be 0–100; severity, impact and type values are constrained).
-3. **Failure mapping.** A JSON decode error or a schema validation error raises `ValueError`, and the route returns **502**. Nothing is persisted.
+3. **Failure mapping.** Usable-answer failures raise `AIResponseError` (a `ValueError` subclass) with a client-safe message: a blank or blocked reply (the SDK's `.text` raising), invalid JSON, or the wrong shape. The route returns that message with **502**. Any other exception (network, quota, auth at the provider) becomes **502 "AI service did not respond"**. Nothing is persisted either way.
 
 #### 4.1.2 Review chat: `chat_about_review(code, language, summary, history, question)`
 1. Gemini has no system role, so the context (instructions, code, summary) is the **first user turn**, followed by a fixed model turn: *"Understood. Ask me about this code."*
 2. Then come the last `HISTORY_LIMIT = 6` stored messages (oldest first), then the new question.
-3. An empty reply raises `ValueError`. **Any** exception is caught by the route, which refunds the quota and returns **502**.
+3. A blank or blocked reply raises `AIResponseError("AI returned an empty response")`. **Any** exception is caught by the route, which refunds the quota and returns **502**, with that message for `AIResponseError` and `"AI service did not respond"` for everything else.
 
 ```
 contents = [
@@ -600,7 +650,7 @@ contents = [
 
 ### 4.2 MongoDB Atlas
 - Accessed through Motor's async client, `AsyncIOMotorClient(MONGO_URI)`, with Beanie on top.
-- `init_beanie` registers the 6 document models and creates the declared indexes on startup.
+- `init_beanie` registers the 7 document models and creates the declared indexes on startup.
 - The connection pool is closed on shutdown (`close_db`).
 - **Note:** the local development `.env` and the Render deployment both use Atlas connection strings. Treat local testing as touching real data unless a separate database is set up.
 
@@ -608,6 +658,49 @@ contents = [
 - The backend is deployed as a web service on Render (`ai-code-reviewer-mevv.onrender.com`).
 - The frontend dev proxy targets it by default (`frontend/.env` → `BACKEND_URL`).
 - Render runs the **committed** code, so local changes take effect there only after commit and deploy.
+
+---
+
+### 4.4 Email
+Email sending is behind one switch, `EMAIL_PROVIDER`, so the host can change without code changes.
+
+| Provider | How it sends | When to use |
+|---|---|---|
+| `log` | Prints the email to the server log | Local development and tests |
+| `brevo` | `POST https://api.brevo.com/v3/smtp/email` over HTTPS with header `api-key` and body `{sender{name,email}, to[{email}], subject, textContent}`; expects 201 | **Current production on Render**: works even where outbound SMTP ports are blocked (Render free plan) |
+| `smtp` | Python `smtplib`, STARTTLS on 587 or SSL on 465, run in a worker thread | **Planned AWS deployment** with Amazon SES's SMTP interface. Also works with Gmail app passwords |
+
+| Item | Detail |
+|---|---|
+| Purpose | Send forgot-password reset codes |
+| Called from | `app/utils/email.py` → `send_password_reset_code()` → `send_email()` |
+| Call style | FastAPI background task after the response is sent. 20 s timeout (HTTP or SMTP) |
+| Data sent | Recipient email, the user's name, the 6-digit code and its lifetime |
+| Failure | Any error (non-2xx from Brevo, SMTP error, timeout) is logged and the pending reset record is deleted, so the user can request again at once |
+| Disabled when | `EMAIL_PROVIDER` is empty, or the chosen provider is missing its settings → #22 returns 503 |
+
+Deployment mapping:
+```
+local laptop   EMAIL_PROVIDER=log
+Render (now)   EMAIL_PROVIDER=brevo  BREVO_API_KEY=…  EMAIL_FROM="KrishnaLens <verified@you>"
+AWS (later)    EMAIL_PROVIDER=smtp   SMTP_HOST=email-smtp.<region>.amazonaws.com SMTP_PORT=587
+               SMTP_USERNAME/PASSWORD = SES SMTP credentials   EMAIL_FROM = SES-verified identity
+```
+
+Email content (plain text):
+```
+Subject: Your KrishnaLens password reset code
+
+Hi <name>,
+
+Your KrishnaLens password reset code is: 042917
+
+It expires in 15 minutes and can only be used once.
+If you didn't ask to reset your password, you can ignore this email;
+your password has not been changed.
+
+— KrishnaLens
+```
 
 ---
 
@@ -716,6 +809,16 @@ Embedded types:
 | `user_id` | ObjectId | **indexed** |
 | `created_at` | date | |
 
+#### `password_resets`
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `user_id` | ObjectId | | **indexed**; at most one pending record per user |
+| `code_hash` | string | | HMAC-SHA256(code, `JWT_SECRET`). The code itself is never stored |
+| `expires_at` | date | | code: now + 15 min; once verified: now + 10 min. **TTL index** removes the record after this time |
+| `attempts` | int | 0 | verify calls made, capped at 5 |
+| `verified` | bool | false | set when the right code is entered |
+| `created_at` | date | now | used for the 60 s resend cooldown |
+
 #### `chat_messages`
 | Field | Type | Notes |
 |---|---|---|
@@ -734,6 +837,8 @@ Embedded types:
 | collections | `user_id` | Per-user listing |
 | chat_sessions | `review_id`, `user_id` | Find or resume the session for a review |
 | chat_messages | `session_id` | Load the transcript |
+| password_resets | `user_id` | Find a user's pending reset |
+| password_resets | `expires_at` (TTL, `expireAfterSeconds: 0`) | MongoDB deletes expired reset records automatically |
 
 ### 5.4 Derived data: stats recomputation
 `recompute_stats(user_id)` loads all of the user's reviews and rebuilds every
@@ -761,7 +866,7 @@ Cost is O(number of the user's reviews) per write. That is fine at current scale
 |---|---|
 | Delete review | the review ID from the user's collections (`$pull`) → the session's chat messages → the chat session → the review → then stats are recalculated |
 | Delete collection | the collection only (reviews are kept) |
-| Delete account | chat messages → chat sessions → reviews → user_stats → collections → user |
+| Delete account | chat messages → chat sessions → password resets → reviews → user_stats → collections → user |
 
 Cascades run as sequential operations without a transaction, so a crash
 partway through can leave orphans (see §8).
@@ -863,6 +968,59 @@ guard ──► find user's chat sessions
    (client discards JWT and redirects)
 ```
 
+### 6.5a Forgot password: #22 → #23 → #24
+```
+STEP 1  POST /forgot-password {email}
+          │
+   SMTP configured? ──no──► 503 "not available right now"
+          │yes
+   user with email? ──no──────────────────────────────┐
+          │yes                                         │
+   last code < 60 s old? ──yes────────────────────────┤ (no new email)
+          │no                                          │
+   delete old record → new 6-digit code                │
+   store HMAC(code), expires = now + 15 min            │
+          │                                            │
+   schedule background email ──────────────────────────┤
+          │                                            ▼
+          └──────────────► 200 "If an account exists … sent a 6-digit code"
+                                   │
+                    (after response) send email ──fail──► log + delete record
+
+STEP 2  POST /verify-reset-code {email, code}
+          │
+   code is 6 digits? ──no──► 422
+          │
+   user with email? ──no──► 400 "Invalid or expired code"
+          │
+   atomically: find record (not verified, attempts < 5, not expired)
+               and attempts += 1 ──none──► 400 "Invalid or expired code"
+          │
+   HMAC(code) matches? ──no──► (attempts == 5 ? delete record) ──► 400
+          │yes
+   verified = true, expires = now + 10 min
+          │
+   sign reset JWT {sub, rid, purpose:"password_reset", exp:+10 min}
+          │
+   200 {resetToken, expiresInMinutes: 10}
+
+STEP 3  POST /reset-password {resetToken, newPassword}
+          │
+   newPassword passes rules? ──no──► 422 (all failed rules)
+          │
+   token valid & purpose = password_reset? ──no──► 400 "…expired. Please start again."
+          │
+   atomically delete record {_id: rid, user_id, verified, not expired}
+          │
+   deleted 1? ──no──► 400 (used / superseded / expired)
+          │yes
+   hash new password (bcrypt) → save user
+          │
+   200 "Password updated. Please sign in with your new password."
+          │
+   (client → /login)
+```
+
 ### 6.6 Create review: `POST /api/reviews`
 ```
 Client ──► POST /reviews {title?, language, originalCode}
@@ -873,11 +1031,13 @@ Client ──► POST /reviews {title?, language, originalCode}
              ▼
      Build prompt ──► Gemini generate_content_async ──error──► 502 "AI service did not respond"
              │
+     reply blank / blocked? ──yes──► 502 "AI returned an empty response"
+             │no
              ▼
      Strip ``` fences ──► json.loads ──fail──► 502 "AI response was not valid JSON"
              │ok
              ▼
-     Validate AIReviewResult ──fail──► 502
+     Validate AIReviewResult ──fail──► 502 "AI response did not match the expected format"
              │ok
              ▼
      Insert review (title default "<language> Review")
@@ -940,7 +1100,7 @@ guard ──► get_or_create user_stats
 
 ### 6.11 Collections
 ```
-POST   /collections            guard ─► insert {name, description} ─► 201 CollectionOut
+POST   /collections            guard ─► name blank? ─yes─► 400 ─no─► insert {name.strip(), description} ─► 201 CollectionOut
 
 GET    /collections            guard ─► find by user ─► for each: fetch reviews in review_ids
                                                        ─► 200 CollectionOut[]
@@ -1060,6 +1220,10 @@ uvicorn start ──► lifespan: init_db()
 | AI cost abuse via chat | Daily quota and capped history |
 | Malformed AI output stored | Strict schema validation before insert |
 | Secrets in source | `.env` only. `.env.example` lists keys without values. |
+| Account discovery via forgot-password | #22 returns the same message and timing for known and unknown emails (email sent in the background); #23 uses one error for every failure |
+| Reset-code brute force | 10^6 codes, 5 attempts per code (atomic counter), 15 min lifetime, 60 s resend cooldown |
+| Reset codes leaked from DB | Only an HMAC keyed with the server secret is stored |
+| Reset token misuse | Purpose-scoped JWT, rejected by every login-protected route; single use (record consumed atomically); 10 min lifetime; invalidated by a newer code request |
 
 ---
 
@@ -1078,6 +1242,7 @@ uvicorn start ──► lifespan: init_db()
 | L9 | `POST /chat/.../start` returns 201 even when reusing a session | Minor HTTP semantics | 200 on reuse |
 | L10 | No automated tests | Regressions | pytest + a test database; contract tests for §3 |
 | L11 | Local development uses the Atlas cluster | Test data mixes with real data | Separate dev database (`DB_NAME`) or local MongoDB |
+| L12 | Email matching is case-sensitive before the `@`. The server trims spaces and lowercases only the domain (`Priya@Example.com` → `Priya@example.com`), the same for register, login and forgot-password | A user who signs up as `Priya@…` must type `Priya@…` again | Case-insensitive lookup (lowercase on write plus a one-off migration, or a case-insensitive collation index). This is a contract change for #2, #3, #22 and #23 |
 
 ---
 
@@ -1103,5 +1268,8 @@ uvicorn start ──► lifespan: init_db()
 |---|---|---|
 | 1.0 | 4 Oct 2026 | First version. |
 | 1.1 | 4 Oct 2026 | Contract agreement with the frontend: #6 wrong current password 401 → **400**; #8 Gemini provider errors 500 → **502**; §2.1 401 handling clarified (only #3 uses 401 for wrong credentials); §2.6 local-proxy wording. All 21 endpoints agreed. |
+| 1.2 | 4 Oct 2026 | **Forgot password**: endpoints #22–#24, §4.4 Email (SMTP), `password_resets` collection (TTL index), flow 6.5a, SMTP config vars, security rows. Reset tokens are rejected by every login-protected route. |
+| 1.3 | 4 Oct 2026 | Email providers are switchable through `EMAIL_PROVIDER` (`log` / `brevo` / `smtp`): Brevo HTTPS API for Render, Amazon SES SMTP for the planned AWS move. Replaces `SMTP_FROM`/`EMAIL_LOG_ONLY` with `EMAIL_FROM`/`EMAIL_PROVIDER=log`. No API contract change. |
+| 1.4 | 5 Oct 2026 | QC run 1 fixes: #8/#21 502 details limited to fixed safe messages (`AIResponseError`), with blocked replies → "AI returned an empty response"; #13 blank name → 400; #23 code `^[0-9]{6}$` (ASCII only); timestamps at millisecond precision so create and read match; §1.6 corrected (on 🔒 routes auth is checked before body validation, so 401 comes before 422). |
 
 *End of document.*

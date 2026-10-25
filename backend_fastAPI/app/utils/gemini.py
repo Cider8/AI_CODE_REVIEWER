@@ -1,6 +1,7 @@
 import json
 import re
 import google.generativeai as genai
+from pydantic import ValidationError
 
 from app.config import settings
 from app.schemas.review_schema import AIReviewResult
@@ -8,6 +9,26 @@ from app.schemas.review_schema import AIReviewResult
 genai.configure(api_key=settings.gemini_api_key)
 
 _model = genai.GenerativeModel("gemini-3.6-flash")
+
+
+class AIResponseError(ValueError):
+    """The model answered, but not with something usable. Its message is
+    written for clients and is safe to return; anything else raised while
+    talking to the model is a provider failure and gets a generic message."""
+
+
+def _response_text(response) -> str:
+    # `.text` raises ValueError when the reply has no valid Part (e.g. the
+    # answer was blocked for safety or recitation); its message is SDK
+    # internals, so it is replaced rather than passed through.
+    try:
+        text = response.text
+    except ValueError as e:
+        raise AIResponseError("AI returned an empty response") from e
+    text = (text or "").strip()
+    if not text:
+        raise AIResponseError("AI returned an empty response")
+    return text
 
 
 PROMPT_TEMPLATE = """\
@@ -64,7 +85,7 @@ async def analyze_code(code: str, language: str) -> AIReviewResult:
     prompt = PROMPT_TEMPLATE.format(language=language, code=code)
 
     response = await _model.generate_content_async(prompt)
-    text = response.text
+    text = _response_text(response)
 
     # Strip markdown code fences if present
     clean = re.sub(r"```json|```", "", text).strip()
@@ -72,9 +93,12 @@ async def analyze_code(code: str, language: str) -> AIReviewResult:
     try:
         data = json.loads(clean)
     except json.JSONDecodeError as e:
-        raise ValueError(f"AI response was not valid JSON: {e}") from e
+        raise AIResponseError("AI response was not valid JSON") from e
 
-    return AIReviewResult(**data)
+    try:
+        return AIReviewResult(**data)
+    except (ValidationError, TypeError) as e:
+        raise AIResponseError("AI response did not match the expected format") from e
 
 
 CHAT_SYSTEM_PROMPT = """\
@@ -118,8 +142,4 @@ async def chat_about_review(
     contents.append({"role": "user", "parts": [question]})
 
     response = await _model.generate_content_async(contents)
-
-    text = (response.text or "").strip()
-    if not text:
-        raise ValueError("AI returned an empty response")
-    return text
+    return _response_text(response)

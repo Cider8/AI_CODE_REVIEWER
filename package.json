@@ -4,7 +4,10 @@
   "description": "Full-stack AI-powered code review app built with React + Express + MongoDB + Gemini AI.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "preview": "npm --prefix frontend run preview"
   },
   "keywords": [],
   "author": "",
