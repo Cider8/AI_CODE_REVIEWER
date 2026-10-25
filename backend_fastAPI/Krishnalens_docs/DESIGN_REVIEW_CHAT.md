@@ -13,6 +13,9 @@
 
 All of these require sign-in. A session belongs to exactly one review and one user.
 
+**Message**: `{ "_id": "…", "sessionId": "…", "role": "user" | "model", "content": "…", "createdAt": "…" }`
+`/start` returns 201 even when it reuses an existing session.
+
 ## Flow: ask a question
 
 ```

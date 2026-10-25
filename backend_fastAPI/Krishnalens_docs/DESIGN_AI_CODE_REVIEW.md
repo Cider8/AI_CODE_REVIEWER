@@ -14,6 +14,19 @@
 
 All of these require sign-in. Another user's review returns 404.
 
+**Review (detail)**: returned by #8 and #10
+```json
+{ "_id": "…", "userId": "…", "title": "Binary Search", "language": "Python", "originalCode": "…",
+  "summary": "…", "overallScore": 78,
+  "bugs": [{ "line": 4, "category": "Off-by-one error", "severity": "medium", "description": "…", "suggestion": "…" }],
+  "securityIssues": [{ "line": null, "type": "Hardcoded Secret", "description": "…", "fix": "…" }],
+  "performanceIssues": [{ "description": "…", "suggestion": "…", "impact": "low" }],
+  "improvements": ["…"], "refactoredCode": "…", "complexity": { "time": "O(log n)", "space": "O(1)" },
+  "tags": ["searching"], "createdAt": "…" }
+```
+**Review (list item)**: in #9, the dashboard and collections: `{ _id, title, language, overallScore, createdAt }`.
+`severity` is one of `low | medium | high | critical`; `impact` is one of `low | medium | high`; `category` is optional.
+
 ## Flow: create a review
 
 ```

@@ -14,6 +14,13 @@
 | 6 | `PATCH /api/auth/password` 🔒 | `{currentPassword, newPassword}` | 200 `{message}` | 400 wrong current password · 422 |
 | 7 | `DELETE /api/auth/account` 🔒 | — | 200 `{message}` | — |
 
+**User response**
+```json
+{ "_id": "…", "name": "Priya", "email": "priya@example.com", "avatar": null,
+  "preferredLanguages": ["Python"], "createdAt": "…" }
+```
+`GET /me` returns this object directly, not wrapped. Register and login return `{token, user}`.
+
 ## Session model
 
 ```
